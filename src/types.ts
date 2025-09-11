@@ -32,5 +32,5 @@ export interface StoreState {
   tasks: Task[];
   sessions: TaskSession[];
   settings: Settings;
+  trash?: (Task & { deletedAt: string })[];
 }
-

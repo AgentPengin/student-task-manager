@@ -6,7 +6,9 @@ const STORAGE_KEY = 'student-time-manager:v1';
 type Action =
   | { type: 'create'; task: Task }
   | { type: 'update'; id: string; patch: Partial<Task> }
-  | { type: 'delete'; id: string }
+  | { type: 'softDelete'; id: string; deletedAt: string }
+  | { type: 'restore'; id: string }
+  | { type: 'purgeOld' }
   | { type: 'toggleDone'; id: string; done: boolean }
   | { type: 'session:start'; session: TaskSession }
   | { type: 'session:end'; sessionId: string; endedAt: string }
@@ -30,8 +32,33 @@ function reducer(state: StoreState, action: Action): StoreState {
         ...state,
         tasks: state.tasks.map((t) => (t.id === action.id ? { ...t, ...action.patch, updatedAt: nowISO() } : t)),
       };
-    case 'delete':
-      return { ...state, tasks: state.tasks.filter((t) => t.id !== action.id) };
+    case 'softDelete': {
+      const task = state.tasks.find((t) => t.id === action.id);
+      if (!task) return state;
+      const trashItem = { ...task, deletedAt: action.deletedAt };
+      return {
+        ...state,
+        tasks: state.tasks.filter((t) => t.id !== action.id),
+        trash: [trashItem, ...(state.trash ?? [])],
+      };
+    }
+    case 'restore': {
+      const trash = state.trash ?? [];
+      const item = trash.find((t) => t.id === action.id);
+      if (!item) return state;
+      const restored: Task = { ...item };
+      delete (restored as any).deletedAt;
+      return {
+        ...state,
+        tasks: [restored, ...state.tasks],
+        trash: trash.filter((t) => t.id !== action.id),
+      };
+    }
+    case 'purgeOld': {
+      const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000; // 7 days
+      const keep = (state.trash ?? []).filter((t) => new Date((t as any).deletedAt).getTime() > cutoff);
+      return { ...state, trash: keep };
+    }
     case 'toggleDone':
       return {
         ...state,
@@ -65,6 +92,7 @@ const fallbackState: StoreState = {
   tasks: [],
   sessions: [],
   settings: { procrastinationCoeff: 1.0 },
+  trash: [],
 };
 
 function load(): StoreState {
@@ -91,6 +119,11 @@ export function useTasksStore() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
+  // periodic purge of trash (once on mount)
+  useEffect(() => {
+    dispatch({ type: 'purgeOld' });
+  }, []);
+
   function createTask(p: Partial<Task> & { title: string }) {
     const task: Task = {
       id: uid(),
@@ -113,8 +146,12 @@ export function useTasksStore() {
     dispatch({ type: 'update', id, patch });
   }
 
-  function deleteTask(id: string) {
-    dispatch({ type: 'delete', id });
+  function softDeleteTask(id: string) {
+    dispatch({ type: 'softDelete', id, deletedAt: nowISO() });
+  }
+
+  function restoreTask(id: string) {
+    dispatch({ type: 'restore', id });
   }
 
   function toggleDone(id: string, done: boolean) {
@@ -150,7 +187,8 @@ export function useTasksStore() {
     completedTasks,
     createTask,
     updateTask,
-    deleteTask,
+    softDeleteTask,
+    restoreTask,
     toggleDone,
     startSession,
     endSession,
