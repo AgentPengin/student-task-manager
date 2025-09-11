@@ -4,7 +4,7 @@ import TaskItem from '../components/TaskItem';
 import FocusTimer from '../components/FocusTimer';
 import { useTasksStore } from '../store/tasks';
 import { isDueToday, isOverdue } from '../lib/date';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 export default function DoNow() {
   const store = useTasksStore();
@@ -18,7 +18,8 @@ export default function DoNow() {
     });
   const [query, setQuery] = useState('');
   const [prio, setPrio] = useState<0 | 1 | 2 | 3>(0); // 0=all
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(true);
+  const [focusId, setFocusId] = useState<string | null>(null);
 
   const matchesFilter = (title: string, tags: string[] = []) => {
     const q = query.trim().toLowerCase();
@@ -31,8 +32,11 @@ export default function DoNow() {
   const today = sortTasks(all.filter((t) => isDueToday(t.dueAt) && !isOverdue(t.dueAt)));
   const upcoming = sortTasks(all.filter((t) => !isDueToday(t.dueAt) && !isOverdue(t.dueAt)));
 
-  const notDoneSorted = [...overdue, ...today, ...upcoming].filter((t) => t.status !== 'done');
-  const top = notDoneSorted[0];
+  const orderedAll = useMemo(() => [...overdue, ...today, ...upcoming], [overdue, today, upcoming]);
+  const focusTask = useMemo(() => {
+    const candidate = (focusId && orderedAll.find((t) => t.id === focusId)) || orderedAll.find((t) => t.status !== 'done') || orderedAll[0];
+    return candidate || null;
+  }, [focusId, orderedAll]);
 
   return (
     <div className="mx-auto max-w-6xl p-4 md:p-6 space-y-6">
@@ -53,11 +57,28 @@ export default function DoNow() {
       <QuickAdd store={store} />
       <TaskForm store={store} />
 
-      {top && <FocusTimer task={top} store={store} />}
+      {/* Focus task picker */}
+      <div className="card p-3 md:p-4 grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+        <div className="text-sm font-medium text-slate-700">Focus task</div>
+        <select
+          className="input md:col-span-2"
+          value={focusTask?.id ?? ''}
+          onChange={(e) => setFocusId(e.target.value || null)}
+        >
+          {orderedAll.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.status === 'done' ? '✓ ' : ''}
+              {t.title}
+            </option>
+          ))}
+        </select>
+      </div>
 
-      <Section title="Overdue" items={overdue.filter((t)=> showCompleted || t.status!=='done')} store={store} empty="No overdue tasks. Great job!" />
-      <Section title="Today" items={today.filter((t)=> showCompleted || t.status!=='done')} store={store} empty="Nothing due today." />
-      <Section title="Upcoming" items={upcoming.filter((t)=> showCompleted || t.status!=='done')} store={store} empty="No upcoming tasks." />
+      {focusTask && <FocusTimer task={focusTask} store={store} />}
+
+      <Section title="Overdue" items={overdue.filter((t)=> showCompleted || t.status!=='done')} store={store} onFocusSelect={setFocusId} empty="No overdue tasks. Great job!" />
+      <Section title="Today" items={today.filter((t)=> showCompleted || t.status!=='done')} store={store} onFocusSelect={setFocusId} empty="Nothing due today." />
+      <Section title="Upcoming" items={upcoming.filter((t)=> showCompleted || t.status!=='done')} store={store} onFocusSelect={setFocusId} empty="No upcoming tasks." />
 
       {showCompleted && (
         <Section
@@ -75,11 +96,13 @@ function Section({
   title,
   items,
   store,
+  onFocusSelect,
   empty,
 }: {
   title: string;
-  items: ReturnType<typeof useTasksStore>['openTasks'];
+  items: ReturnType<typeof useTasksStore>['state']['tasks'];
   store: ReturnType<typeof useTasksStore>;
+  onFocusSelect?: (id: string) => void;
   empty: string;
 }) {
   return (
@@ -90,7 +113,7 @@ function Section({
       ) : (
         <div className="grid gap-3">
           {items.map((t) => (
-            <TaskItem key={t.id} task={t} store={store} />
+            <TaskItem key={t.id} task={t} store={store} onFocusSelect={onFocusSelect} />
           ))}
         </div>
       )}

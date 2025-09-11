@@ -5,7 +5,7 @@ import { fmtDate, fmtTime, isDueToday, isOverdue } from '../lib/date';
 import { useState } from 'react';
 import { useSnackbar } from './Snackbar';
 
-export default function TaskItem({ task, store }: { task: Task; store: TasksStore }) {
+export default function TaskItem({ task, store, onFocusSelect }: { task: Task; store: TasksStore; onFocusSelect?: (id: string) => void }) {
   const { show } = useSnackbar();
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
@@ -79,6 +79,11 @@ export default function TaskItem({ task, store }: { task: Task; store: TasksStor
       </div>
 
         <div className="flex items-center gap-2">
+          {onFocusSelect && (
+            <button className="btn-outline" onClick={() => onFocusSelect(task.id)}>
+              Focus
+            </button>
+          )}
           <button
             className="btn-outline"
             onClick={() => {

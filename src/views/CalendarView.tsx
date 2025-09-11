@@ -70,7 +70,7 @@ export default function CalendarView() {
               <div className="mt-1 space-y-1">
                 {tasks.slice(0, 3).map((t) => (
                   <div key={t.id} className="text-xs truncate px-2 py-1 rounded bg-brand-50 text-brand-900">
-                    {t.title}
+                    {t.status === 'done' ? '✓ ' : ''}{t.title}
                   </div>
                 ))}
                 {tasks.length > 3 && (
