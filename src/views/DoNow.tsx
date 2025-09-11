@@ -2,6 +2,7 @@ import QuickAdd from '../components/QuickAdd';
 import TaskForm from '../components/TaskForm';
 import TaskItem from '../components/TaskItem';
 import FocusTimer from '../components/FocusTimer';
+import FocusOverlay from '../components/FocusOverlay';
 import { useTasksStore } from '../store/tasks';
 import { isDueToday, isOverdue } from '../lib/date';
 import { useMemo, useState } from 'react';
@@ -20,6 +21,7 @@ export default function DoNow() {
   const [prio, setPrio] = useState<0 | 1 | 2 | 3>(0); // 0=all
   const [showCompleted, setShowCompleted] = useState(true);
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [focusMode, setFocusMode] = useState(false);
 
   const matchesFilter = (title: string, tags: string[] = []) => {
     const q = query.trim().toLowerCase();
@@ -74,11 +76,15 @@ export default function DoNow() {
         </select>
       </div>
 
-      {focusTask && <FocusTimer task={focusTask} store={store} />}
+      {focusTask && (
+        <FocusTimer task={focusTask} store={store} onEnterFocusMode={() => setFocusMode(true)} />
+      )}
 
-      <Section title="Overdue" items={overdue.filter((t)=> showCompleted || t.status!=='done')} store={store} onFocusSelect={setFocusId} empty="No overdue tasks. Great job!" />
-      <Section title="Today" items={today.filter((t)=> showCompleted || t.status!=='done')} store={store} onFocusSelect={setFocusId} empty="Nothing due today." />
-      <Section title="Upcoming" items={upcoming.filter((t)=> showCompleted || t.status!=='done')} store={store} onFocusSelect={setFocusId} empty="No upcoming tasks." />
+      <Section title="Overdue" items={overdue.filter((t)=> showCompleted || t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="No overdue tasks. Great job!" />
+      <Section title="Today" items={today.filter((t)=> showCompleted || t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="Nothing due today." />
+      <Section title="Upcoming" items={upcoming.filter((t)=> showCompleted || t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="No upcoming tasks." />
+
+      <FocusOverlay open={focusMode} task={focusTask} store={store} onClose={() => setFocusMode(false)} />
 
       {showCompleted && (
         <Section

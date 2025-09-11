@@ -10,7 +10,7 @@ function formatMMSS(totalSeconds: number) {
   return `${m}:${s}`;
 }
 
-export default function FocusTimer({ task, store }: { task: Task; store: TasksStore }) {
+export default function FocusTimer({ task, store, autoStart, onEnterFocusMode }: { task: Task; store: TasksStore; autoStart?: boolean; onEnterFocusMode?: () => void }) {
   const [duration, setDuration] = useState(25 * 60);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
@@ -26,6 +26,14 @@ export default function FocusTimer({ task, store }: { task: Task; store: TasksSt
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (autoStart && !running) {
+      // slight delay to allow transition mount
+      const t = setTimeout(() => start(), 150);
+      return () => clearTimeout(t);
+    }
+  }, [autoStart, task.id]);
 
   function loop() {
     if (!running) return;
@@ -95,6 +103,9 @@ export default function FocusTimer({ task, store }: { task: Task; store: TasksSt
               <button className="btn-primary" onClick={pause}>Pause</button>
             ) : (
               <button className="btn-primary" onClick={start}>Start</button>
+            )}
+            {onEnterFocusMode && (
+              <button className="btn-outline" onClick={onEnterFocusMode}>Full Focus</button>
             )}
             <button className="btn-outline" onClick={() => reset(25 * 60)}>25m</button>
             <button className="btn-outline" onClick={() => reset(50 * 60)}>50m</button>
