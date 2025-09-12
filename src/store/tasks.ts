@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer } from 'react';
-import type { StoreState, Task, TaskSession } from '../types';
+import type { StoreState, Task, TaskSession, Subtask } from '../types';
 
 const STORAGE_KEY = 'student-time-manager:v1';
 
@@ -136,6 +136,7 @@ export function useTasksStore() {
       estimatedMinutes: p.estimatedMinutes,
       actualMinutes: p.actualMinutes ?? 0,
       tags: p.tags ?? [],
+      subtasks: p.subtasks ?? [],
       createdAt: nowISO(),
       updatedAt: nowISO(),
     };
@@ -177,6 +178,36 @@ export function useTasksStore() {
     dispatch({ type: 'settings:update', procrastinationCoeff: Math.max(0.5, Math.min(5, v)) });
   }
 
+  // Subtasks
+  function addSubtask(taskId: string, title: string, estimateMinutes?: number) {
+    const base = state.tasks.find((t) => t.id === taskId);
+    if (!base) return;
+    const st: Subtask = { id: uid(), title: title.trim(), done: false, estimateMinutes };
+    const subtasks = [...(base.subtasks ?? []), st];
+    dispatch({ type: 'update', id: taskId, patch: { subtasks } });
+  }
+
+  function toggleSubtask(taskId: string, subtaskId: string, done: boolean) {
+    const base = state.tasks.find((t) => t.id === taskId);
+    if (!base) return;
+    const subtasks = (base.subtasks ?? []).map((s) => (s.id === subtaskId ? { ...s, done } : s));
+    dispatch({ type: 'update', id: taskId, patch: { subtasks } });
+  }
+
+  function updateSubtaskTitle(taskId: string, subtaskId: string, title: string) {
+    const base = state.tasks.find((t) => t.id === taskId);
+    if (!base) return;
+    const subtasks = (base.subtasks ?? []).map((s) => (s.id === subtaskId ? { ...s, title: title.trim() } : s));
+    dispatch({ type: 'update', id: taskId, patch: { subtasks } });
+  }
+
+  function deleteSubtask(taskId: string, subtaskId: string) {
+    const base = state.tasks.find((t) => t.id === taskId);
+    if (!base) return;
+    const subtasks = (base.subtasks ?? []).filter((s) => s.id !== subtaskId);
+    dispatch({ type: 'update', id: taskId, patch: { subtasks } });
+  }
+
   // derived
   const openTasks = useMemo(() => state.tasks.filter((t) => t.status !== 'done'), [state.tasks]);
   const completedTasks = useMemo(() => state.tasks.filter((t) => t.status === 'done'), [state.tasks]);
@@ -193,6 +224,10 @@ export function useTasksStore() {
     startSession,
     endSession,
     setProcrastinationCoeff,
+    addSubtask,
+    toggleSubtask,
+    updateSubtaskTitle,
+    deleteSubtask,
   };
 }
 

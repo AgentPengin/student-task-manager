@@ -13,6 +13,7 @@ export default function TaskItem({ task, store, onFocusSelect }: { task: Task; s
   const [dueTime, setDueTime] = useState<string>(task.dueAt ? new Date(task.dueAt).toTimeString().slice(0, 5) : '');
   const [tags, setTags] = useState<string>((task.tags ?? []).join(', '));
   const overdue = isOverdue(task.dueAt);
+  const [subTitle, setSubTitle] = useState('');
   const dueToday = isDueToday(task.dueAt);
   return (
     <div className="card p-3 md:p-4 flex flex-col gap-3">
@@ -168,6 +169,69 @@ export default function TaskItem({ task, store, onFocusSelect }: { task: Task; s
           </button>
         </div>
       )}
+
+      {/* Subtasks */}
+      <div className="mt-2 space-y-2">
+        <div className="text-xs text-slate-500 font-medium">Subtasks</div>
+        {(task.subtasks ?? []).length === 0 && (
+          <div className="text-xs text-slate-400">No subtasks yet.</div>
+        )}
+        {(task.subtasks ?? []).map((s) => (
+          <div key={s.id} className="flex items-center gap-2">
+            <input
+              className="h-4 w-4"
+              type="checkbox"
+              checked={s.done}
+              onChange={(e) => store.toggleSubtask(task.id, s.id, e.target.checked)}
+            />
+            {editing ? (
+              <input
+                className="input flex-1"
+                defaultValue={s.title}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v && v !== s.title) store.updateSubtaskTitle(task.id, s.id, v);
+                }}
+              />
+            ) : (
+              <span className={clsx('flex-1', s.done && 'line-through text-slate-400')}>{s.title}</span>
+            )}
+            {editing && (
+              <button className="btn-outline" onClick={() => store.deleteSubtask(task.id, s.id)}>
+                Remove
+              </button>
+            )}
+          </div>
+        ))}
+        <div className="flex items-center gap-2">
+          <input
+            className="input flex-1"
+            placeholder="Add subtask and press Enter"
+            value={subTitle}
+            onChange={(e) => setSubTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const v = subTitle.trim();
+                if (v) {
+                  store.addSubtask(task.id, v);
+                  setSubTitle('');
+                }
+              }
+            }}
+          />
+          <button
+            className="btn-outline"
+            onClick={() => {
+              const v = subTitle.trim();
+              if (!v) return;
+              store.addSubtask(task.id, v);
+              setSubTitle('');
+            }}
+          >
+            Add
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

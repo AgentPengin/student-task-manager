@@ -28,19 +28,19 @@ export default function FocusOverlay({
         open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
       }`}
     >
-      <div className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300`} />
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 pointer-events-none" />
       <div className="absolute inset-0 grid place-items-center p-4">
         <div
           className={`w-full max-w-2xl transition-all duration-300 ${
             open ? 'scale-100 translate-y-0' : 'scale-95 translate-y-2'
           }`}
         >
-          <div className="card p-6 md:p-8">
+          <div className="relative z-10 card p-6 md:p-8">
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm font-medium text-slate-700">Focus Mode</div>
               <button className="btn-outline" onClick={onClose}>Exit</button>
             </div>
-            {task && <FocusTimer task={task} store={store} autoStart />}
+            {task && <FocusTimer task={task} store={store} autoStart variant="overlay" />}
             {!task && <div className="text-slate-600">No task selected.</div>}
           </div>
         </div>
@@ -48,4 +48,3 @@ export default function FocusOverlay({
     </div>
   );
 }
-

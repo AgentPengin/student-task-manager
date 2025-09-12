@@ -8,6 +8,13 @@ export interface TaskSession {
   minutes: number; // planned or actual when ended
 }
 
+export interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
+  estimateMinutes?: number;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -19,6 +26,7 @@ export interface Task {
   estimatedMinutes?: number;
   actualMinutes?: number;
   tags?: string[];
+  subtasks?: Subtask[];
   createdAt: string; // ISO
   updatedAt: string; // ISO
   completedAt?: string; // ISO

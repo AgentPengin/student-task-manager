@@ -10,51 +10,47 @@ function formatMMSS(totalSeconds: number) {
   return `${m}:${s}`;
 }
 
-export default function FocusTimer({ task, store, autoStart, onEnterFocusMode }: { task: Task; store: TasksStore; autoStart?: boolean; onEnterFocusMode?: () => void }) {
+export default function FocusTimer({ task, store, autoStart, onEnterFocusMode, variant = 'inline' }: { task: Task; store: TasksStore; autoStart?: boolean; onEnterFocusMode?: () => void; variant?: 'inline' | 'overlay' }) {
   const [duration, setDuration] = useState(25 * 60);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
-  const rafRef = useRef<number | null>(null);
+  const intervalRef = useRef<number | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const autoStartedForTaskRef = useRef<string | null>(null);
 
   const remaining = Math.max(0, duration - elapsed);
-  const pct = Math.min(100, Math.round((elapsed / duration) * 100));
+  const pct = Math.min(100, Math.round(((duration - remaining) / duration) * 100));
 
   useEffect(() => {
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (intervalRef.current) window.clearInterval(intervalRef.current);
     };
   }, []);
 
   useEffect(() => {
-    if (autoStart && !running) {
-      // slight delay to allow transition mount
+    if (autoStart && autoStartedForTaskRef.current !== task.id) {
+      autoStartedForTaskRef.current = task.id;
       const t = setTimeout(() => start(), 150);
       return () => clearTimeout(t);
     }
   }, [autoStart, task.id]);
 
-  function loop() {
-    if (!running) return;
-    const now = performance.now();
-    if (startedAtRef.current == null) startedAtRef.current = now;
-    const delta = now - startedAtRef.current; // ms
-    const seconds = Math.floor(delta / 1000);
-    setElapsed(seconds);
-    if (seconds >= duration) {
-      finish();
-      return;
-    }
-    rafRef.current = requestAnimationFrame(loop);
-  }
-
   function start() {
     if (running) return;
     setRunning(true);
-    startedAtRef.current = performance.now() - elapsed * 1000;
-    sessionIdRef.current = store.startSession(task.id);
-    rafRef.current = requestAnimationFrame(loop);
+    startedAtRef.current = Date.now() - elapsed * 1000;
+    if (!sessionIdRef.current) sessionIdRef.current = store.startSession(task.id);
+    if (intervalRef.current) window.clearInterval(intervalRef.current);
+    intervalRef.current = window.setInterval(() => {
+      if (!startedAtRef.current) return;
+      const seconds = Math.floor((Date.now() - startedAtRef.current) / 1000);
+      const next = Math.min(duration, seconds);
+      setElapsed(next);
+      if (next >= duration) {
+        finish();
+      }
+    }, 1000) as unknown as number;
   }
 
   function pause() {
@@ -64,7 +60,7 @@ export default function FocusTimer({ task, store, autoStart, onEnterFocusMode }:
       store.endSession(sessionIdRef.current);
       sessionIdRef.current = null;
     }
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (intervalRef.current) window.clearInterval(intervalRef.current);
   }
 
   function reset(to = duration) {
@@ -79,26 +75,41 @@ export default function FocusTimer({ task, store, autoStart, onEnterFocusMode }:
     store.updateTask(task.id, { actualMinutes: (task.actualMinutes ?? 0) + minutes });
   }
 
+  const outerGrid = variant === 'overlay'
+    ? 'card p-6 grid grid-cols-1 gap-6 items-center'
+    : 'card p-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-center';
+
   return (
-    <div className="card p-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-      <div className="md:col-span-2 flex items-center gap-4">
-        <div className="relative h-20 w-20">
-          <svg className="h-20 w-20 rotate-[-90deg]" viewBox="0 0 36 36">
-            <path d="M18 2 a 16 16 0 0 1 0 32 a 16 16 0 0 1 0 -32" fill="none" stroke="#e5e7eb" strokeWidth="4" />
-            <path
-              d="M18 2 a 16 16 0 0 1 0 32 a 16 16 0 0 1 0 -32"
-              fill="none"
-              stroke="#5674ff"
-              strokeWidth="4"
-              strokeDasharray={`${pct}, 100`}
-            />
-          </svg>
-          <div className="absolute inset-0 grid place-items-center text-xl font-semibold tabular-nums">{formatMMSS(remaining)}</div>
+    <div className={outerGrid}>
+      <div className={variant === 'overlay' ? 'flex items-center gap-6 justify-center' : 'md:col-span-2 flex items-center gap-4'}>
+        <div className="relative h-24 w-24">
+          {(() => {
+            const r = 18;
+            const circumference = 2 * Math.PI * r;
+            const offset = circumference * (1 - pct / 100);
+            return (
+              <svg className="h-24 w-24 rotate-[-90deg]" viewBox="0 0 48 48">
+                <circle cx="24" cy="24" r={r} fill="none" stroke="#e5e7eb" strokeWidth="4" />
+                <circle
+                  cx="24"
+                  cy="24"
+                  r={r}
+                  fill="none"
+                  stroke="#5674ff"
+                  strokeWidth="4"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={offset}
+                  strokeLinecap="round"
+                />
+              </svg>
+            );
+          })()}
+          <div className="absolute inset-0 grid place-items-center text-2xl font-semibold tabular-nums">{formatMMSS(remaining)}</div>
         </div>
         <div>
           <div className="text-xs text-slate-500">Focus Timer</div>
           <div className="text-slate-800 font-medium truncate max-w-[24ch]" title={task.title}>{task.title}</div>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
             {running ? (
               <button className="btn-primary" onClick={pause}>Pause</button>
             ) : (
@@ -114,20 +125,35 @@ export default function FocusTimer({ task, store, autoStart, onEnterFocusMode }:
           </div>
         </div>
       </div>
-
-      <div className="md:col-span-1">
-        <label className="text-xs text-slate-500">Duration</label>
-        <input
-          type="range"
-          min={5}
-          max={120}
-          step={5}
-          value={Math.round(duration / 60)}
-          onChange={(e) => setDuration(parseInt(e.target.value) * 60)}
-          className="w-full"
-        />
-        <div className="text-sm text-slate-700 mt-1">{Math.round(duration / 60)} minutes</div>
-      </div>
+      {variant === 'overlay' ? (
+        <div className="w-full">
+          <label className="text-xs text-slate-500">Duration</label>
+          <input
+            type="range"
+            min={5}
+            max={120}
+            step={5}
+            value={Math.round(duration / 60)}
+            onChange={(e) => setDuration(parseInt(e.target.value) * 60)}
+            className="w-full"
+          />
+          <div className="text-sm text-slate-700 mt-2">{Math.round(duration / 60)} minutes</div>
+        </div>
+      ) : (
+        <div className="md:col-span-1">
+          <label className="text-xs text-slate-500">Duration</label>
+          <input
+            type="range"
+            min={5}
+            max={120}
+            step={5}
+            value={Math.round(duration / 60)}
+            onChange={(e) => setDuration(parseInt(e.target.value) * 60)}
+            className="w-full"
+          />
+          <div className="text-sm text-slate-700 mt-1">{Math.round(duration / 60)} minutes</div>
+        </div>
+      )}
     </div>
   );
 }
