@@ -42,20 +42,38 @@ export default function DoNow() {
 
   return (
     <div className="mx-auto max-w-6xl p-4 md:p-6 space-y-6">
-      {/* Filters */}
-      <div className="card p-3 md:p-4 grid grid-cols-1 md:grid-cols-6 gap-3">
-        <input className="input md:col-span-3" placeholder="Search title or #tag" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <select className="input md:col-span-1" value={prio} onChange={(e) => setPrio(Number(e.target.value) as any)}>
-          <option value={0}>All priorities</option>
-          <option value={3}>High</option>
-          <option value={2}>Medium</option>
-          <option value={1}>Low</option>
-        </select>
-        <label className="inline-flex items-center gap-2 md:col-span-2">
-          <input type="checkbox" checked={showCompleted} onChange={(e) => setShowCompleted(e.target.checked)} />
-          <span className="text-sm text-slate-700">Show Completed</span>
-        </label>
+      {/* Filters (sticky) */}
+      <div className="sticky top-2 z-[1]">
+        <div className="card p-3 md:p-4 grid grid-cols-1 md:grid-cols-6 gap-3">
+          <input className="input md:col-span-3" placeholder="Search title or #tag" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <select className="input md:col-span-1" value={prio} onChange={(e) => setPrio(Number(e.target.value) as any)}>
+            <option value={0}>All priorities</option>
+            <option value={3}>High</option>
+            <option value={2}>Medium</option>
+            <option value={1}>Low</option>
+          </select>
+          <label className="inline-flex items-center gap-2 md:col-span-2">
+            <input type="checkbox" checked={showCompleted} onChange={(e) => setShowCompleted(e.target.checked)} />
+            <span className="text-sm text-slate-700">Show Completed</span>
+          </label>
+          {/* Active filter chips */}
+          <div className="md:col-span-6 flex items-center gap-2 mt-1">
+            {query && (
+              <span className="tag">Search: {query} <button className="ml-2 text-slate-500" onClick={() => setQuery('')}>×</button></span>
+            )}
+            {prio !== 0 && (
+              <span className="tag">
+                Priority: {prio === 3 ? 'High' : prio === 2 ? 'Medium' : 'Low'}
+                <button className="ml-2 text-slate-500" onClick={() => setPrio(0)}>×</button>
+              </span>
+            )}
+            {(query || prio !== 0) && (
+              <button className="btn-outline" onClick={() => { setQuery(''); setPrio(0 as any); }}>Clear all</button>
+            )}
+          </div>
+        </div>
       </div>
+
       <QuickAdd store={store} />
       <TaskForm store={store} />
 
@@ -80,9 +98,9 @@ export default function DoNow() {
         <FocusTimer task={focusTask} store={store} onEnterFocusMode={() => setFocusMode(true)} />
       )}
 
-      <Section title="Overdue" items={overdue.filter((t)=> showCompleted || t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="No overdue tasks. Great job!" />
-      <Section title="Today" items={today.filter((t)=> showCompleted || t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="Nothing due today." />
-      <Section title="Upcoming" items={upcoming.filter((t)=> showCompleted || t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="No upcoming tasks." />
+      <Section title="Overdue" items={overdue.filter((t)=> t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="No overdue tasks. Great job!" />
+      <Section title="Today" items={today.filter((t)=> t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="Nothing due today." />
+      <Section title="Upcoming" items={upcoming.filter((t)=> t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="No upcoming tasks." />
 
       <FocusOverlay open={focusMode} task={focusTask} store={store} onClose={() => setFocusMode(false)} />
 

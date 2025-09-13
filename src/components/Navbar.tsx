@@ -34,4 +34,3 @@ function Tab({ to, label }: { to: string; label: string }) {
     </NavLink>
   );
 }
-

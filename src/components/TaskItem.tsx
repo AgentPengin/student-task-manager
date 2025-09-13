@@ -2,7 +2,8 @@ import { clsx } from 'clsx';
 import type { Task } from '../types';
 import type { TasksStore } from '../store/tasks';
 import { fmtDate, fmtTime, isDueToday, isOverdue } from '../lib/date';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { EllipsisVertical, AlarmClock, Pencil, Trash2, ArrowUp, CheckSquare } from 'lucide-react';
 import { useSnackbar } from './Snackbar';
 
 export default function TaskItem({ task, store, onFocusSelect }: { task: Task; store: TasksStore; onFocusSelect?: (id: string) => void }) {
@@ -12,11 +13,20 @@ export default function TaskItem({ task, store, onFocusSelect }: { task: Task; s
   const [dueDate, setDueDate] = useState<string>(task.dueAt ? task.dueAt.slice(0, 10) : '');
   const [dueTime, setDueTime] = useState<string>(task.dueAt ? new Date(task.dueAt).toTimeString().slice(0, 5) : '');
   const [tags, setTags] = useState<string>((task.tags ?? []).join(', '));
-  const overdue = isOverdue(task.dueAt);
   const [subTitle, setSubTitle] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [subOpen, setSubOpen] = useState((task.subtasks?.length ?? 0) > 0);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const overdue = isOverdue(task.dueAt);
   const dueToday = isDueToday(task.dueAt);
+
+  const subTotal = (task.subtasks ?? []).length;
+  const subDone = (task.subtasks ?? []).filter((s) => s.done).length;
+  const subPct = subTotal ? Math.round((subDone / subTotal) * 100) : 0;
+  const priorityColor = task.priority >= 3 ? 'border-l-red-500' : task.priority === 2 ? 'border-l-amber-500' : 'border-l-emerald-500';
+
   return (
-    <div className="card p-3 md:p-4 flex flex-col gap-3">
+    <div className={clsx('card p-3 md:p-4 flex flex-col gap-3 hover:shadow-lg transition-shadow border-l-4', priorityColor)}>
       <div className="flex items-center gap-3">
         <button
           aria-label="toggle done"
@@ -26,7 +36,7 @@ export default function TaskItem({ task, store, onFocusSelect }: { task: Task; s
             task.status === 'done' ? 'bg-brand-600 border-brand-600 text-white' : 'border-slate-300',
           )}
         >
-          {task.status === 'done' ? '✓' : ''}
+          ?
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -62,68 +72,75 @@ export default function TaskItem({ task, store, onFocusSelect }: { task: Task; s
                 {task.title}
               </button>
             )}
-          {task.tags?.slice(0, 3).map((t) => (
-            <span key={t} className="tag">#{t}</span>
-          ))}
-          {task.priority >= 3 && <span className="tag bg-red-100 text-red-700">High</span>}
-        </div>
-        <div className="text-xs text-slate-500 mt-1">
-          {task.dueAt && (
-            <>
-              <span className={clsx(overdue && 'text-red-600', dueToday && 'text-amber-700')}>
-                Due {fmtDate(task.dueAt)} {fmtTime(task.dueAt)}
+            {task.tags?.slice(0, 3).map((t) => (
+              <span key={t} className="tag">#{t}</span>
+            ))}
+            {task.tags && task.tags.length > 3 && (
+              <span className="tag">+{task.tags.length - 3}</span>
+            )}
+            {task.priority >= 3 && <span className="tag bg-red-100 text-red-700">High</span>}
+          </div>
+          <div className="mt-1 flex items-center gap-2 text-xs">
+            {task.dueAt && (
+              <span
+                className={clsx(
+                  'tag',
+                  overdue && 'bg-red-100 text-red-700',
+                  !overdue && dueToday && 'bg-amber-100 text-amber-800',
+                  !overdue && !dueToday && 'bg-slate-100 text-slate-700',
+                )}
+              >
+                {overdue ? 'Overdue' : dueToday ? 'Today' : `Due ${fmtDate(task.dueAt)} ${fmtTime(task.dueAt)}`}
               </span>
-              {task.estimatedMinutes ? <span> • est {task.estimatedMinutes}m</span> : null}
-            </>
+            )}
+            {typeof task.estimatedMinutes === 'number' && (
+              <span className="tag">est {task.estimatedMinutes}m</span>
+            )}
+            {subTotal > 0 && <span className="tag">{subDone}/{subTotal}</span>}
+          </div>
+          {subTotal > 0 && (
+            <div className="mt-1 h-1 w-full rounded bg-slate-100 overflow-hidden">
+              <div className="h-full bg-brand-500" style={{ width: `${subPct}%` }} />
+            </div>
           )}
+        </div>
+        <div className="shrink-0 flex items-start gap-2">
+          {onFocusSelect && (
+            <button className="btn-outline" onClick={() => onFocusSelect(task.id)} aria-label="Focus this task">
+              <CheckSquare size={18} className="text-brand-600" /> Focus
+            </button>
+          )}
+          <div className="relative" ref={menuRef}>
+            <button className="btn-outline" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
+              <EllipsisVertical size={18} className="text-slate-500" />
+            </button>
+            {menuOpen && (
+              <div role="menu" className="absolute right-0 mt-2 w-48 card p-1 z-10 shadow-lg">
+                <button className="btn w-full justify-start" onClick={() => { setEditing(true); setMenuOpen(false); }}>
+                  <Pencil size={18} className="text-amber-600" /> Edit
+                </button>
+                <button className="btn w-full justify-start" onClick={() => {
+                  const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(18,0,0,0);
+                  store.updateTask(task.id, { dueAt: d.toISOString() }); setMenuOpen(false);
+                }}><AlarmClock size={16} /> Snooze ? Tomorrow 18:00</button>
+                <button className="btn w-full justify-start" onClick={() => {
+                  const current = task.priority ?? 2; const next = Math.min(3, current + 1) as 1 | 2 | 3;
+                  store.updateTask(task.id, { priority: next }); setMenuOpen(false);
+                }}><ArrowUp size={18} className="text-violet-600" /> Increase Priority</button>
+                <button className="btn w-full justify-start" onClick={() => {
+                  store.softDeleteTask(task.id); setMenuOpen(false);
+                  show({ message: 'Task deleted', actionLabel: 'Undo', onAction: () => store.restoreTask(task.id) });
+                }}><Trash2 size={18} className="text-rose-600" /> Delete</button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-        <div className="flex items-center gap-2">
-          {onFocusSelect && (
-            <button className="btn-outline" onClick={() => onFocusSelect(task.id)}>
-              Focus
-            </button>
-          )}
-          <button
-            className="btn-outline"
-            onClick={() => {
-              const current = task.priority ?? 2;
-              const next = Math.min(3, current + 1) as 1 | 2 | 3;
-              store.updateTask(task.id, { priority: next });
-            }}
-          >
-            +Priority
-          </button>
-          <button
-            className="btn-outline"
-            onClick={() => {
-              // Snooze to tomorrow 18:00
-              const d = new Date();
-              d.setDate(d.getDate() + 1);
-              d.setHours(18, 0, 0, 0);
-              store.updateTask(task.id, { dueAt: d.toISOString() });
-            }}
-          >
-            Snooze → Tomorrow 18:00
-          </button>
-          <button
-            className="btn-outline"
-            onClick={() => {
-              store.softDeleteTask(task.id);
-              show({
-                message: 'Task deleted',
-                actionLabel: 'Undo',
-                onAction: () => store.restoreTask(task.id),
-              });
-            }}
-          >
-            Delete
-          </button>
-          <button className="btn-outline" onClick={() => setEditing((v) => !v)}>
-            {editing ? 'Close' : 'Edit'}
-          </button>
-        </div>
+      {/* Collapsible subtasks header */}
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-slate-500 font-medium">Subtasks</div>
+        <button className="btn-outline" onClick={() => setSubOpen((v) => !v)}>{subOpen ? 'Hide' : 'Show'}</button>
       </div>
 
       {editing && (
@@ -171,8 +188,8 @@ export default function TaskItem({ task, store, onFocusSelect }: { task: Task; s
       )}
 
       {/* Subtasks */}
+      {subOpen && (
       <div className="mt-2 space-y-2">
-        <div className="text-xs text-slate-500 font-medium">Subtasks</div>
         {(task.subtasks ?? []).length === 0 && (
           <div className="text-xs text-slate-400">No subtasks yet.</div>
         )}
@@ -232,6 +249,10 @@ export default function TaskItem({ task, store, onFocusSelect }: { task: Task; s
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }
+
+
+

@@ -1,7 +1,7 @@
 import type { Task } from '../types';
 import type { TasksStore } from '../store/tasks';
 import FocusTimer from './FocusTimer';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function FocusOverlay({
   open,
@@ -14,13 +14,29 @@ export default function FocusOverlay({
   store: TasksStore;
   onClose: () => void;
 }) {
+  const [isFs, setIsFs] = useState<boolean>(!!document.fullscreenElement);
+  const [soundOn, setSoundOn] = useState(true);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
     }
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const onFs = () => setIsFs(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFs);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('fullscreenchange', onFs);
+    };
   }, [onClose]);
+
+  function toggleFs() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  }
 
   return (
     <div
@@ -38,9 +54,13 @@ export default function FocusOverlay({
           <div className="relative z-10 card p-6 md:p-8">
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm font-medium text-slate-700">Focus Mode</div>
-              <button className="btn-outline" onClick={onClose}>Exit</button>
+              <div className="flex items-center gap-2">
+                <button className="btn-outline" onClick={toggleFs}>{isFs ? 'Exit Fullscreen' : 'Fullscreen'}</button>
+                <button className="btn-outline" onClick={() => setSoundOn((v) => !v)}>{soundOn ? 'Sound: On' : 'Sound: Off'}</button>
+                <button className="btn-outline" onClick={onClose}>Exit</button>
+              </div>
             </div>
-            {task && <FocusTimer task={task} store={store} autoStart variant="overlay" />}
+            {task && <FocusTimer task={task} store={store} autoStart variant="overlay" sound={soundOn} />}
             {!task && <div className="text-slate-600">No task selected.</div>}
           </div>
         </div>

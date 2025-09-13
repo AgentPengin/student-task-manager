@@ -10,7 +10,30 @@ function formatMMSS(totalSeconds: number) {
   return `${m}:${s}`;
 }
 
-export default function FocusTimer({ task, store, autoStart, onEnterFocusMode, variant = 'inline' }: { task: Task; store: TasksStore; autoStart?: boolean; onEnterFocusMode?: () => void; variant?: 'inline' | 'overlay' }) {
+function tryBeep() {
+  try {
+    const Ctx: any = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const duration = 0.15; // seconds per beep
+    const play = (delay: number, freq = 880) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + duration);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + duration + 0.01);
+    };
+    play(0, 880);
+    play(0.2, 660);
+  } catch {}
+}
+
+export default function FocusTimer({ task, store, autoStart, onEnterFocusMode, variant = 'inline', sound }: { task: Task; store: TasksStore; autoStart?: boolean; onEnterFocusMode?: () => void; variant?: 'inline' | 'overlay'; sound?: boolean }) {
   const [duration, setDuration] = useState(25 * 60);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
@@ -73,6 +96,7 @@ export default function FocusTimer({ task, store, autoStart, onEnterFocusMode, v
     pause();
     const minutes = Math.round((elapsed || duration) / 60);
     store.updateTask(task.id, { actualMinutes: (task.actualMinutes ?? 0) + minutes });
+    if (sound) tryBeep();
   }
 
   const outerGrid = variant === 'overlay'
