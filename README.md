@@ -12,7 +12,7 @@ Example (replace with your actual steps)
 - `npm start`
 
 ## 🔗 Deployed Web URL or APK file
-✍️ [Paste your link here]
+✍️ [[Paste your link here](https://student-task-manager-beta.vercel.app/)]
 
 
 ## 🎥 Demo Video
