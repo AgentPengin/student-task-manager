@@ -6,6 +6,7 @@ import FocusOverlay from '../components/FocusOverlay';
 import { useTasksStore } from '../store/tasks';
 import { isDueToday, isOverdue } from '../lib/date';
 import { useMemo, useState } from 'react';
+import { clsx } from 'clsx';
 
 export default function DoNow() {
   const store = useTasksStore();
@@ -40,8 +41,26 @@ export default function DoNow() {
     return candidate || null;
   }, [focusId, orderedAll]);
 
+  // simple stats for header
+  const dueTodayCount = today.filter((t) => t.status !== 'done').length;
+  const completedCount = store.state.tasks.filter((t) => t.status === 'done').length;
+  const totalCount = store.state.tasks.length || 1;
+  const focusScore = Math.min(100, Math.round((completedCount / totalCount) * 100));
+
   return (
     <div className="mx-auto max-w-6xl p-4 md:p-6 space-y-6">
+      {/* Header glass card with gradient title + stats */}
+      <div className="card p-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">Plan Your Day</h1>
+          <p className="text-slate-600 mt-1">Quick add, focus, and track your progress.</p>
+        </div>
+        <div className="flex gap-6">
+          <Stat label="Due Today" value={String(dueTodayCount)} accent="text-indigo-500" />
+          <Stat label="Completed" value={String(completedCount)} accent="text-emerald-600" />
+          <Stat label="Focus Score" value={`${focusScore}`} accent="text-purple-600" />
+        </div>
+      </div>
       {/* Filters (sticky) */}
       <div className="sticky top-2 z-[1]">
         <div className="card p-3 md:p-4 grid grid-cols-1 md:grid-cols-6 gap-3">
@@ -74,44 +93,83 @@ export default function DoNow() {
         </div>
       </div>
 
-      <QuickAdd store={store} />
-      <TaskForm store={store} />
+      <div className="grid md:grid-cols-4 gap-6">
+        <div className="md:col-span-3 space-y-6">
+          <QuickAdd store={store} />
+          <TaskForm store={store} />
 
-      {/* Focus task picker */}
-      <div className="card p-3 md:p-4 grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
-        <div className="text-sm font-medium text-slate-700">Focus task</div>
-        <select
-          className="input md:col-span-2"
-          value={focusTask?.id ?? ''}
-          onChange={(e) => setFocusId(e.target.value || null)}
-        >
-          {orderedAll.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.status === 'done' ? '✓ ' : ''}
-              {t.title}
-            </option>
-          ))}
-        </select>
+          {/* Focus task picker */}
+          <div className="card p-3 md:p-4 grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+            <div className="text-sm font-medium text-slate-700">Focus task</div>
+            <select
+              className="input md:col-span-2"
+              value={focusTask?.id ?? ''}
+              onChange={(e) => setFocusId(e.target.value || null)}
+            >
+              {orderedAll.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.status === 'done' ? '✓ ' : ''}
+                  {t.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {focusTask && (
+            <FocusTimer task={focusTask} store={store} onEnterFocusMode={() => setFocusMode(true)} />
+          )}
+
+          <Section title="Overdue" items={overdue.filter((t)=> t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="No overdue tasks. Great job!" />
+          <Section title="Today" items={today.filter((t)=> t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="Nothing due today." />
+          <Section title="Upcoming" items={upcoming.filter((t)=> t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="No upcoming tasks." />
+
+          {showCompleted && (
+            <Section
+              title="Completed"
+              items={sortTasks(store.state.tasks.filter((t) => t.status === 'done'))}
+              store={store}
+              empty="No completed tasks yet."
+            />
+          )}
+        </div>
+
+        {/* Insights sidebar (placeholder, non-AI) */}
+        <aside className="space-y-4">
+          <div className="card p-4">
+            <div className="flex items-center gap-2 text-indigo-600 font-semibold mb-2">Insights</div>
+            <div className="grid gap-3">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <div className="text-sm font-semibold text-slate-800 mb-1">Suggested time slots</div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="pill bg-indigo-500 text-white">19:00–20:00</span>
+                  <span className="pill bg-indigo-500 text-white">20:30–21:30</span>
+                  <span className="pill bg-indigo-500 text-white">22:00–23:00</span>
+                </div>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <div className="text-sm font-semibold text-slate-800 mb-1">Focus score</div>
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full text-white" style={{background:'linear-gradient(135deg,#667eea 0%,#764ba2 100%)'}}>
+                  <div className="text-center">
+                    <div className="text-lg font-bold">{focusScore}</div>
+                    <div className="text-[10px] opacity-80">/100</div>
+                  </div>
+                </div>
+                <div className="mt-1 text-xs text-slate-600">Placeholder metric based on completed/total.</div>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <div className="text-sm font-semibold text-slate-800 mb-1">Tips</div>
+                <ul className="text-xs text-slate-700 list-disc pl-4">
+                  <li>Start with the highest priority due today.</li>
+                  <li>Use Focus Mode for 25m, then 5m break.</li>
+                  <li>Group similar tasks for momentum.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
 
-      {focusTask && (
-        <FocusTimer task={focusTask} store={store} onEnterFocusMode={() => setFocusMode(true)} />
-      )}
-
-      <Section title="Overdue" items={overdue.filter((t)=> t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="No overdue tasks. Great job!" />
-      <Section title="Today" items={today.filter((t)=> t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="Nothing due today." />
-      <Section title="Upcoming" items={upcoming.filter((t)=> t.status!=='done')} store={store} onFocusSelect={(id)=>{ setFocusId(id); setFocusMode(true); }} empty="No upcoming tasks." />
-
       <FocusOverlay open={focusMode} task={focusTask} store={store} onClose={() => setFocusMode(false)} />
-
-      {showCompleted && (
-        <Section
-          title="Completed"
-          items={sortTasks(store.state.tasks.filter((t) => t.status === 'done'))}
-          store={store}
-          empty="No completed tasks yet."
-        />
-      )}
     </div>
   );
 }
@@ -142,5 +200,14 @@ function Section({
         </div>
       )}
     </section>
+  );
+}
+
+function Stat({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div className="text-center">
+      <span className={clsx('block text-xl font-bold', accent)}>{value}</span>
+      <span className="text-xs text-slate-600">{label}</span>
+    </div>
   );
 }
