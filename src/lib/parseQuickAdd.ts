@@ -1,7 +1,7 @@
 // Lightweight quick-add parser: supports patterns like
-// "Math HW due tomorrow 17:00 ~90m #math #hw"
-// "Finish report due 2025-09-20 23:59 ~2h"
-// Returns {title, dueAt, estimatedMinutes, tags}
+// "Math HW due tomorrow 17:00 ~90m #math #hw p3"
+// "Finish report due 2025-09-20 23:59 ~2h !!!"
+// Returns {title, dueAt, estimatedMinutes, tags, priority}
 
 const RELATIVE_DAYS: Record<string, number> = {
   today: 0,
@@ -57,6 +57,7 @@ export interface QuickAddResult {
   dueAt?: string;
   estimatedMinutes?: number;
   tags?: string[];
+  priority?: 1 | 2 | 3;
 }
 
 export function parseQuickAdd(input: string): QuickAddResult {
@@ -65,6 +66,7 @@ export function parseQuickAdd(input: string): QuickAddResult {
   let date: Date | null = null;
   let time: { h: number; min: number } | null = null;
   let estimatedMinutes: number | undefined;
+  let priority: 1 | 2 | 3 | undefined;
 
   const kept: string[] = [];
 
@@ -91,6 +93,18 @@ export function parseQuickAdd(input: string): QuickAddResult {
       time = t;
       continue;
     }
+    // Priority markers: p1/p2/p3 or !/!!/!!! (1..3)
+    const pm = part.match(/^p([123])$/i);
+    if (pm) {
+      priority = (parseInt(pm[1], 10) as 1 | 2 | 3);
+      continue;
+    }
+    const bang = part.match(/^!{1,3}$/);
+    if (bang) {
+      priority = (bang[0].length as 1 | 2 | 3);
+      continue;
+    }
+
     const est = parseEstimate(part);
     if (est !== null) {
       estimatedMinutes = est;
@@ -113,6 +127,6 @@ export function parseQuickAdd(input: string): QuickAddResult {
     dueAt: date ? toISODate(date) : undefined,
     estimatedMinutes,
     tags: tags.length ? tags : undefined,
+    priority,
   };
 }
-

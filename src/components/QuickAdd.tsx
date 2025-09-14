@@ -14,6 +14,7 @@ export default function QuickAdd({ store }: { store: TasksStore }) {
       dueAt: parsed.dueAt,
       estimatedMinutes: parsed.estimatedMinutes,
       tags: parsed.tags,
+      priority: parsed.priority,
     });
     setText('');
   }
@@ -24,10 +25,9 @@ export default function QuickAdd({ store }: { store: TasksStore }) {
         className="input"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Quick add: e.g. 'Math HW due tomorrow 17:00 ~90m #math'"
+        placeholder="Quick add: e.g. 'Math HW due tomorrow 17:00 ~90m #math p3' or '!!!'"
       />
       <button type="submit" className="btn-primary">Add</button>
     </form>
   );
 }
-

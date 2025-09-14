@@ -3,7 +3,7 @@ import type { Task } from '../types';
 import type { TasksStore } from '../store/tasks';
 import { fmtDate, fmtTime, isDueToday, isOverdue } from '../lib/date';
 import { useRef, useState } from 'react';
-import { EllipsisVertical, AlarmClock, Pencil, Trash2, ArrowUp, CheckSquare } from 'lucide-react';
+import { EllipsisVertical, AlarmClock, Pencil, Trash2, ArrowUp, ArrowDown, CheckSquare } from 'lucide-react';
 import { useSnackbar } from './Snackbar';
 
 export default function TaskItem({ task, store, onFocusSelect }: { task: Task; store: TasksStore; onFocusSelect?: (id: string) => void }) {
@@ -26,7 +26,7 @@ export default function TaskItem({ task, store, onFocusSelect }: { task: Task; s
   const priorityColor = task.priority >= 3 ? 'border-l-red-500' : task.priority === 2 ? 'border-l-amber-500' : 'border-l-emerald-500';
 
   return (
-    <div className={clsx('card p-3 md:p-4 flex flex-col gap-3 hover:shadow-lg transition-shadow border-l-4', priorityColor)}>
+    <div className={clsx('card p-3 md:p-4 flex flex-col gap-3 hover:shadow-lg transition-shadow border-l-4 overflow-visible', priorityColor, menuOpen && 'relative z-50')}>
       <div className="flex items-center gap-3">
         <button
           aria-label="toggle done"
@@ -36,7 +36,7 @@ export default function TaskItem({ task, store, onFocusSelect }: { task: Task; s
             task.status === 'done' ? 'bg-brand-600 border-brand-600 text-white' : 'border-slate-300',
           )}
         >
-          ?
+          {task.status === 'done' ? '✓' : ''}
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -115,18 +115,22 @@ export default function TaskItem({ task, store, onFocusSelect }: { task: Task; s
               <EllipsisVertical size={18} className="text-slate-500" />
             </button>
             {menuOpen && (
-              <div role="menu" className="absolute right-0 mt-2 w-48 card p-1 z-10 shadow-lg">
+              <div role="menu" className="absolute right-0 top-full mt-2 w-48 card p-1 z-50 shadow-lg max-h-60 overflow-auto">
                 <button className="btn w-full justify-start" onClick={() => { setEditing(true); setMenuOpen(false); }}>
                   <Pencil size={18} className="text-amber-600" /> Edit
                 </button>
                 <button className="btn w-full justify-start" onClick={() => {
                   const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(18,0,0,0);
                   store.updateTask(task.id, { dueAt: d.toISOString() }); setMenuOpen(false);
-                }}><AlarmClock size={16} /> Snooze ? Tomorrow 18:00</button>
+                }}><AlarmClock size={16} /> Snooze → Tomorrow 18:00</button>
                 <button className="btn w-full justify-start" onClick={() => {
                   const current = task.priority ?? 2; const next = Math.min(3, current + 1) as 1 | 2 | 3;
                   store.updateTask(task.id, { priority: next }); setMenuOpen(false);
                 }}><ArrowUp size={18} className="text-violet-600" /> Increase Priority</button>
+                <button className="btn w-full justify-start" onClick={() => {
+                  const current = task.priority ?? 2; const next = Math.max(1, current - 1) as 1 | 2 | 3;
+                  store.updateTask(task.id, { priority: next }); setMenuOpen(false);
+                }}><ArrowDown size={18} className="text-amber-600" /> Decrease Priority</button>
                 <button className="btn w-full justify-start" onClick={() => {
                   store.softDeleteTask(task.id); setMenuOpen(false);
                   show({ message: 'Task deleted', actionLabel: 'Undo', onAction: () => store.restoreTask(task.id) });
