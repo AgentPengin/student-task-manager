@@ -12,7 +12,7 @@ Example (replace with your actual steps)
 - `npm start`
 
 ## 🔗 Deployed Web URL or APK file
-✍️ [[Paste your link here](https://student-task-manager-beta.vercel.app/)]
+✍️ [[TimeStream - Student Time Manager](https://student-task-manager-beta.vercel.app/)]
 
 
 ## 🎥 Demo Video
@@ -22,14 +22,14 @@ Example (replace with your actual steps)
 - The video will not appear in search results or on your channel.  
 - Share the link in your README so mentors can access it.  
 
-✍️ [Paste your video link here]
+✍️ [[Demo link](https://www.youtube.com/watch?v=DCtUEokXXXw)]
 
 
 ## 💻 Project Introduction
 
 ### a. Overview
 
-✍️ [Write your content here]
+✍️ [Student Task Manager (TimeStream) is a lightweight web application built to help students stay on top of assignments, deadlines, and study sessions. Its core feature is the Quick-add prompt, which turns natural language input into structured tasks (e.g., Math HW due tomorrow 17:00 ~90m #math p2). The app includes a Calendar view for visualizing tasks over time, a Focus mode to minimize distractions during study, and is designed to be extendable with AI-powered suggestions for task prioritization and study planning. With a clean, responsive interface optimized for both desktop and mobile, the app leverages React, TypeScript, Vite, and Tailwind]
 
 ### b. Key Features & Function Manual
 
